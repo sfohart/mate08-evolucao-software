@@ -72,7 +72,7 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 public class Bug {
 
     @XmlElement(required = true)
-    protected BigInteger bugid;
+    protected BigInteger bugId;
     @XmlElement(required = true)
     protected String title;
     @XmlElement(required = true)
@@ -109,8 +109,8 @@ public class Bug {
      *     {@link BigInteger }
      *     
      */
-    public BigInteger getBugid() {
-        return bugid;
+    public BigInteger getBugId() {
+        return bugId;
     }
 
     /**
@@ -121,8 +121,8 @@ public class Bug {
      *     {@link BigInteger }
      *     
      */
-    public void setBugid(BigInteger value) {
-        this.bugid = value;
+    public void setBugId(BigInteger value) {
+        this.bugId = value;
     }
 
     /**
