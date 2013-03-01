@@ -8,6 +8,7 @@
 
 package mining.challenge.android.bugreport.model;
 
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,9 +70,14 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
     "comment"
 })
 @XmlRootElement(name = "bug")
-public class Bug {
+public class Bug implements Serializable {
 
-    @XmlElement(required = true)
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = -1269937626883938309L;
+	
+	@XmlElement(required = true)
     protected BigInteger bugId;
     @XmlElement(required = true)
     protected String title;
