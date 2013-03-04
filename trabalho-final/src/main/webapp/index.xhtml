@@ -13,8 +13,8 @@
 	<h:body>
 		<div style="width: 70%; font-size: 12px !important;">
 			<h:form prependId="false"> 
-				<p:dataTable  id="grid" var="developer" value="#{testeBean.developerList}" 
-				paginator="true" rows="10"
+				<p:dataTable  id="grid" var="developer" value="#{testeBean.lazyDataModel}" 
+				paginator="true" rows="10" lazy="true"
 				paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"  
 				rowsPerPageTemplate="5,10,15">
 					<p:column headerText="Desenvolvedor">

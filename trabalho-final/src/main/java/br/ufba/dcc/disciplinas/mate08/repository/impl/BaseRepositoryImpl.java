@@ -36,7 +36,16 @@ public class BaseRepositoryImpl<ID extends Serializable, E extends BaseEntity<ID
 		entityClass = (Class<E>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[1];
 	}
 	
+	
+	
 	public List<E> findAll(){
+		TypedQuery<E> query = createSelectAllQuery();
+		List<E> result = query.getResultList();
+		
+		return result;
+	}
+
+	private TypedQuery<E> createSelectAllQuery() {
 		CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
 		CriteriaQuery<E> criteriaQuery = criteriaBuilder.createQuery(entityClass);
 		
@@ -44,6 +53,16 @@ public class BaseRepositoryImpl<ID extends Serializable, E extends BaseEntity<ID
 		criteriaQuery.select(root);
 		
 		TypedQuery<E> query = entityManager.createQuery(criteriaQuery);
+		return query;
+	}
+	
+	public List<E> findAll(Integer startAt, Integer offset) {
+		TypedQuery<E> query = createSelectAllQuery();
+		
+		query
+			.setMaxResults(offset)
+			.setFirstResult(startAt);
+		
 		List<E> result = query.getResultList();
 		
 		return result;
@@ -61,6 +80,16 @@ public class BaseRepositoryImpl<ID extends Serializable, E extends BaseEntity<ID
 	@TransactionAttribute(TransactionAttributeType.REQUIRED)
 	public void delete(E entity) {
 		entityManager.remove(entity);
+	}
+
+
+
+	@Override
+	public Long countAll() {
+		CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+		CriteriaQuery<Long> criteriaQuery = criteriaBuilder.createQuery(Long.class);
+		criteriaQuery.select(criteriaBuilder.count(criteriaQuery.from(entityClass)));
+		return entityManager.createQuery(criteriaQuery).getSingleResult();
 	}
 	
 }

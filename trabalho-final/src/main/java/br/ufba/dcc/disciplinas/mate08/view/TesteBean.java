@@ -1,7 +1,6 @@
 package br.ufba.dcc.disciplinas.mate08.view;
 
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,8 @@ import br.ufba.dcc.disciplinas.mate08.repository.DeveloperRepository;
 @ViewScoped
 public class TesteBean {
 
-	private List<DeveloperEntity> developerList;
+	@Inject
+	private LazyDeveloperDataModel lazyDataModel;
 	
 	@Inject 
 	@Developer
@@ -74,13 +74,12 @@ public class TesteBean {
 			ex.printStackTrace();
 		}
 		
-		this.developerList = new ArrayList<>(map.values());		
-	}
-	
-	public List<DeveloperEntity> getDeveloperList() {
-		return developerList;
+		return;
 	}
 	
 	
+	public LazyDeveloperDataModel getLazyDataModel() {
+		return lazyDataModel;
+	}
 	
 }

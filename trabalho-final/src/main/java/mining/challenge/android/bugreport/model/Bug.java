@@ -75,7 +75,6 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
     "comment"
 })
 @XmlRootElement(name = "bug")
-@Entity
 public class Bug implements Serializable {
 
     /**
@@ -83,8 +82,6 @@ public class Bug implements Serializable {
 	 */
 	private static final long serialVersionUID = -1269937626883938309L;
 	
-	@Id
-	@Column(name="id")	
 	@XmlElement(required = true)
     protected BigInteger bugid;
     @XmlElement(required = true)
@@ -113,8 +110,7 @@ public class Bug implements Serializable {
     protected String openedDate;
     @XmlElement(required = true)
     protected String description;
-    
-    @OneToMany
+
     protected List<Comment> comment;
 
     /**

@@ -5,7 +5,6 @@ import java.util.List;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Transient;
 
@@ -23,7 +22,7 @@ public class DeveloperEntity extends BaseEntity<Long> {
 	@Column(nullable=false, unique=true)
 	private String email;
 	
-	@OneToMany
+	@Transient
 	private List<Bug> bugs;
 	
 	public DeveloperEntity() {

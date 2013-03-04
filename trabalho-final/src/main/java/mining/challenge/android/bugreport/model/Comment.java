@@ -44,7 +44,6 @@ import javax.xml.bind.annotation.XmlType;
     "what"
 })
 @XmlRootElement(name = "comment")
-@Entity
 public class Comment {
 
     @XmlElement(required = true)
