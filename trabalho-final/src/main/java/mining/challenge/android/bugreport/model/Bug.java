@@ -16,6 +16,7 @@ import java.util.List;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.OneToMany;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
@@ -112,6 +113,8 @@ public class Bug implements Serializable {
     protected String openedDate;
     @XmlElement(required = true)
     protected String description;
+    
+    @OneToMany
     protected List<Comment> comment;
 
     /**

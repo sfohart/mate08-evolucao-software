@@ -5,13 +5,15 @@ import java.util.List;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 
 import mining.challenge.android.bugreport.model.Bug;
 
-@Table(name="developer")
 @Entity
-public class DeveloperModel extends BaseModel<Long> {
+@Table(name="developer")
+public class DeveloperEntity extends BaseEntity<Long> {
 
 	/**
 	 * 
@@ -21,9 +23,10 @@ public class DeveloperModel extends BaseModel<Long> {
 	@Column(nullable=false, unique=true)
 	private String email;
 	
+	@OneToMany
 	private List<Bug> bugs;
 	
-	public DeveloperModel() {
+	public DeveloperEntity() {
 		bugs = new ArrayList<>();
 	}
 

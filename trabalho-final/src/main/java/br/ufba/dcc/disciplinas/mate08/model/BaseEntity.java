@@ -3,9 +3,12 @@ package br.ufba.dcc.disciplinas.mate08.model;
 import java.io.Serializable;
 
 import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.MappedSuperclass;
 
-public abstract class BaseModel<ID extends Serializable> implements
+@MappedSuperclass
+public abstract class BaseEntity<ID extends Serializable> implements
 		Serializable {
 
 	/**
@@ -14,7 +17,7 @@ public abstract class BaseModel<ID extends Serializable> implements
 	private static final long serialVersionUID = -7945670440130889562L;
 
 	@Id
-	@GeneratedValue
+	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private ID id;
 
 	public ID getId() {
