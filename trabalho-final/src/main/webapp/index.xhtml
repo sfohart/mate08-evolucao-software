@@ -1,11 +1,30 @@
-<html 
-	xmlns:h="http://java.sun.com/jsf/html"
-	xmlns:p="http://primefaces.org/ui">
-<h:head>
-</h:head>
-<h:body>
-	<h:form>
-		<p:editor />
-	</h:form>
-</h:body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">  
+<html xmlns="http://www.w3.org/1999/xhtml"  
+    xmlns:h="http://java.sun.com/jsf/html"  
+    xmlns:f="http://java.sun.com/jsf/core"  
+    xmlns:p="http://primefaces.org/ui"  
+    xmlns:ui="http://java.sun.com/jsf/facelets">  
+  
+<f:view contentType="text/html" encoding="utf-8">  
+  
+	
+	<h:head>
+	</h:head>
+	<h:body>
+		<div style="width: 70%; font-size: 12px !important;">
+			<h:form prependId="false"> 
+				<p:dataTable  id="grid" var="developer" value="#{testeBean.developerList}" 
+				paginator="true" rows="10"
+				paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"  
+				rowsPerPageTemplate="5,10,15">
+					<p:column headerText="Desenvolvedor">
+						<h:outputText value="#{developer.email}" />
+					</p:column>
+			       
+				</p:dataTable> 
+			</h:form>
+		</div>
+	</h:body>
+
+</f:view>
 </html>

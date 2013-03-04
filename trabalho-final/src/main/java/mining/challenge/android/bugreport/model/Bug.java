@@ -12,6 +12,10 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
@@ -70,6 +74,7 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
     "comment"
 })
 @XmlRootElement(name = "bug")
+@Entity
 public class Bug implements Serializable {
 
     /**
@@ -77,8 +82,10 @@ public class Bug implements Serializable {
 	 */
 	private static final long serialVersionUID = -1269937626883938309L;
 	
+	@Id
+	@Column(name="id")	
 	@XmlElement(required = true)
-    protected BigInteger bugId;
+    protected BigInteger bugid;
     @XmlElement(required = true)
     protected String title;
     @XmlElement(required = true)
@@ -115,8 +122,8 @@ public class Bug implements Serializable {
      *     {@link BigInteger }
      *     
      */
-    public BigInteger getBugId() {
-        return bugId;
+    public BigInteger getBugid() {
+        return bugid;
     }
 
     /**
@@ -127,8 +134,8 @@ public class Bug implements Serializable {
      *     {@link BigInteger }
      *     
      */
-    public void setBugId(BigInteger value) {
-        this.bugId = value;
+    public void setBugid(BigInteger value) {
+        this.bugid = value;
     }
 
     /**
