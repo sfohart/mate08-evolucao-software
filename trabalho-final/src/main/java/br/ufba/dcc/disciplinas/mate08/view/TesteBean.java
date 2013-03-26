@@ -1,24 +1,18 @@
 package br.ufba.dcc.disciplinas.mate08.view;
 
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import javax.annotation.PostConstruct;
 import javax.faces.bean.ViewScoped;
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.persistence.EntityManager;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.transform.stream.StreamSource;
 
 import mining.challenge.android.bugreport.model.AndroidBugs;
-import mining.challenge.android.bugreport.model.Bug;
-import br.ufba.dcc.disciplinas.mate08.model.DeveloperEntity;
-import br.ufba.dcc.disciplinas.mate08.qualifier.Developer;
-import br.ufba.dcc.disciplinas.mate08.repository.DeveloperRepository;
 
 
 @Named
@@ -26,19 +20,15 @@ import br.ufba.dcc.disciplinas.mate08.repository.DeveloperRepository;
 public class TesteBean {
 
 	@Inject
-	private LazyDeveloperDataModel lazyDataModel;
+	private LazyBugDataModel lazyDataModel;
 	
-	@Inject 
-	@Developer
-	private DeveloperRepository repository;
+	@Inject
+	private EntityManager entityManager;
 	
-	public DeveloperRepository getRepository() {
-		return repository;
-	}
 	
 	@PostConstruct
 	public void init() {
-		Map<String, DeveloperEntity> map = new HashMap<>();
+		
 		try {
 			InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream("android_platform_bugs.xml");
 			JAXBContext context = JAXBContext.newInstance("mining.challenge.android.bugreport.model");
@@ -48,28 +38,8 @@ public class TesteBean {
 			
 			AndroidBugs androidBugs = root.getValue();
 			
-			//criando preferências
+			entityManager.persist(androidBugs);
 			
-			
-			if (androidBugs.getBug() != null && ! androidBugs.getBug().isEmpty()) {
-				for (Bug bug : androidBugs.getBug()) {
-					if (! "null".equals(bug.getOwner())) {
-						DeveloperEntity developer = map.get(bug.getOwner());
-						if (developer == null) {
-							developer = new DeveloperEntity();
-							developer.setEmail(bug.getOwner());
-							
-							getRepository().save(developer);
-							
-							map.put(bug.getOwner(), developer);
-						}
-						
-						List<Bug> bugs = developer.getBugs();
-						bugs.add(bug);
-						
-					}
-				}
-			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -78,7 +48,7 @@ public class TesteBean {
 	}
 	
 	
-	public LazyDeveloperDataModel getLazyDataModel() {
+	public LazyBugDataModel getLazyDataModel() {
 		return lazyDataModel;
 	}
 	

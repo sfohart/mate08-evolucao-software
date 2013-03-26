@@ -1,40 +1,40 @@
 package br.ufba.dcc.disciplinas.mate08.view;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import javax.enterprise.context.Dependent;
 import javax.inject.Inject;
 
+import mining.challenge.android.bugreport.model.Bug;
+
 import org.primefaces.model.LazyDataModel;
 import org.primefaces.model.SortOrder;
 
-import br.ufba.dcc.disciplinas.mate08.model.DeveloperEntity;
-import br.ufba.dcc.disciplinas.mate08.qualifier.Developer;
-import br.ufba.dcc.disciplinas.mate08.repository.DeveloperRepository;
+import br.ufba.dcc.disciplinas.mate08.qualifier.BugQualifier;
+import br.ufba.dcc.disciplinas.mate08.repository.BugRepository;
 
 @Dependent
-public class LazyDeveloperDataModel extends LazyDataModel<DeveloperEntity> {
+public class LazyBugDataModel extends LazyDataModel<Bug> {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -1473031061591313522L;
 
-	@Inject
-	@Developer
-	private DeveloperRepository repository;
+	@Inject 
+	@BugQualifier
+	private BugRepository repository;
 
 	@Override
-	public List<DeveloperEntity> load(
+	public List<Bug> load(
 			int first, 
 			int pageSize,
 			String sortField, 
 			SortOrder sortOrder, 
 			Map<String, String> filters) {
 		
-		List<DeveloperEntity> data = repository.findAll(first, pageSize);
+		List<Bug> data = repository.findAll(first, pageSize);
 		
         //rowCount  
         int dataSize = repository.countAll().intValue();  

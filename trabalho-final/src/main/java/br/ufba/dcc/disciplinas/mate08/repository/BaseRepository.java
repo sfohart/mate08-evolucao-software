@@ -12,7 +12,7 @@ public interface BaseRepository<ID extends Serializable, E extends BaseEntity<ID
 	public List<E> findAll(Integer startAt, Integer offset);
 	
 	public E findById(ID id);
-	public void save(E entity);
-	public void delete(E entity);
+	public void save(E entity) throws Exception;
+	public void delete(E entity)  throws Exception;
 	
 }
