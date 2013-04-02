@@ -1,10 +1,14 @@
-package br.ufba.dcc.disciplinas.mate08.view;
+package br.ufba.dcc.disciplinas.mate08.view.managedbean;
 
 import java.io.Serializable;
 
 import javax.enterprise.context.ConversationScoped;
+import javax.faces.event.ActionEvent;
 import javax.inject.Inject;
 import javax.inject.Named;
+
+import br.ufba.dcc.disciplinas.mate08.lucene.indexer.BugIndexer;
+import br.ufba.dcc.disciplinas.mate08.view.components.LazyOwnedBugDataModel;
 
 import mining.challenge.android.bugreport.model.Bug;
 
@@ -20,6 +24,7 @@ public class TesteBean implements Serializable {
 	@Inject
 	private LazyOwnedBugDataModel lazyDataModel;
 	
+	
 	private Bug selectedBug;
 	
 	public Bug getSelectedBug() {
@@ -29,6 +34,8 @@ public class TesteBean implements Serializable {
 	public void setSelectedBug(Bug selectedBug) {
 		this.selectedBug = selectedBug;
 	}
+	
+	
 
 	public LazyOwnedBugDataModel getLazyDataModel() {
 		return lazyDataModel;

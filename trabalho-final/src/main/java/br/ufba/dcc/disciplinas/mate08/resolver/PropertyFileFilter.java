@@ -15,7 +15,7 @@ public class PropertyFileFilter implements FileFilter {
 
         boolean isDirectory = pathname.isDirectory();
 
-        boolean isWebInfResource = pathname.getAbsolutePath().contains("classes/");
+        boolean isWebInfResource = pathname.getAbsolutePath().contains("classes" + System.getProperty("file.separator"));
 
         if (isDirectory || !isWebInfResource) {
             return false;

@@ -17,7 +17,7 @@ import javax.inject.Qualifier;
 @Qualifier
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER })
-public @interface ConfigurableValue {
+public @interface ConfigurationValue {
 
 	//chave a ser procurada
 	@Nonbinding

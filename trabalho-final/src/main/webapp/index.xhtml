@@ -19,6 +19,10 @@
 			            <f:param name="mode" value="'show'" />  
 			        </p:effect>  
 			    </p:messages>
+			    
+			    <p:commandButton value="Indexar Bugs" update="messages" actionListener="#{indexBugBean.createIndex}" />
+			
+				<p:separator />
 			
 				<p:dataTable  id="grid" var="bug" value="#{testeBean.lazyDataModel}" 
 					paginator="true" rows="10" lazy="true"

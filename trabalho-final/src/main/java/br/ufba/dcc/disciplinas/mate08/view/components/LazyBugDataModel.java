@@ -1,4 +1,4 @@
-package br.ufba.dcc.disciplinas.mate08.view;
+package br.ufba.dcc.disciplinas.mate08.view.components;
 
 import javax.inject.Inject;
 
