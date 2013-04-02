@@ -1,55 +1,37 @@
 package br.ufba.dcc.disciplinas.mate08.view;
 
-import java.io.InputStream;
+import java.io.Serializable;
 
-import javax.annotation.PostConstruct;
-import javax.faces.bean.ViewScoped;
+import javax.enterprise.context.ConversationScoped;
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.persistence.EntityManager;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.Unmarshaller;
-import javax.xml.transform.stream.StreamSource;
 
-import mining.challenge.android.bugreport.model.AndroidBugs;
-
+import mining.challenge.android.bugreport.model.Bug;
 
 @Named
-@ViewScoped
-public class TesteBean {
+@ConversationScoped
+public class TesteBean implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6903752123217243426L;
 
 	@Inject
-	private LazyBugDataModel lazyDataModel;
+	private LazyOwnedBugDataModel lazyDataModel;
 	
-	@Inject
-	private EntityManager entityManager;
+	private Bug selectedBug;
 	
-	
-	@PostConstruct
-	public void init() {
-		
-		try {
-			InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream("android_platform_bugs.xml");
-			JAXBContext context = JAXBContext.newInstance("mining.challenge.android.bugreport.model");
-			
-			Unmarshaller unmarshaller = context.createUnmarshaller();
-			JAXBElement<AndroidBugs> root = unmarshaller.unmarshal(new StreamSource(is), AndroidBugs.class);
-			
-			AndroidBugs androidBugs = root.getValue();
-			
-			entityManager.persist(androidBugs);
-			
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-		
-		return;
+	public Bug getSelectedBug() {
+		return selectedBug;
 	}
 	
-	
-	public LazyBugDataModel getLazyDataModel() {
+	public void setSelectedBug(Bug selectedBug) {
+		this.selectedBug = selectedBug;
+	}
+
+	public LazyOwnedBugDataModel getLazyDataModel() {
 		return lazyDataModel;
 	}
-	
+
 }

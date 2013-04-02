@@ -3,20 +3,22 @@
 	xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd"
 	version="2.0">
 
-	<persistence-unit name="trabalho" transaction-type="RESOURCE_LOCAL">
+	<persistence-unit name="mate08" transaction-type="RESOURCE_LOCAL">
 		<provider>org.hibernate.ejb.HibernatePersistence</provider>
 		
 		<class>mining.challenge.android.bugreport.model.Bug</class>
-		<class>mining.challenge.android.bugreport.model.Comment</class>
-		<class>mining.challenge.android.bugreport.model.AndroidBugs</class>
+		<class>mining.challenge.android.bugreport.model.BugComment</class>
+		<class>mining.challenge.android.bugreport.model.Developer</class>
 
 		<properties>
-			<property name="hibernate.dialect" value="org.hibernate.dialect.HSQLDialect" />
-			<property name="hibernate.connection.driver_class" value="org.hsqldb.jdbcDriver" />
-			<property name="hibernate.connection.username" value="sa" />
-			<property name="hibernate.connection.password" value="" />
-			<property name="hibernate.connection.url" value="jdbc:hsqldb:mem:trabalho" />
-			<property name="hibernate.hbm2ddl.auto" value="create-drop" />
+			<!--  https://github.com/hibernate/hibernate-orm/pull/396  -->
+			<property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQL82Dialect" />			
+			
+			<property name="hibernate.connection.driver_class" value="org.postgresql.Driver" />
+			<property name="hibernate.connection.username" value="postgres" />
+			<property name="hibernate.connection.password" value="postgres" />
+			<property name="hibernate.connection.url" value="jdbc:postgresql://localhost:5432/mate08" />
+			<property name="hibernate.hbm2ddl.auto" value="update" />
 			<property name="hibernate.cache.provider_class" value="org.hibernate.cache.HashtableCacheProvider" />
 			<property name="hibernate.jdbc.batch_size" value="0" />
 			<property name="hibernate.show_sql" value="true" />

@@ -12,13 +12,33 @@
 	</h:head>
 	<h:body>
 		<div style="width: 70%; font-size: 12px !important;">
-			<h:form prependId="false"> 
-				<p:dataTable  id="grid" var="developer" value="#{testeBean.lazyDataModel}" 
-				paginator="true" rows="10" lazy="true"
-				paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"  
-				rowsPerPageTemplate="5,10,15">
-					<p:column headerText="Desenvolvedor">
-						<h:outputText value="#{developer.email}" />
+			<h:form> 
+			
+				<p:messages id="messages">  
+			        <p:effect type="pulsate" event="load" delay="1000">  
+			            <f:param name="mode" value="'show'" />  
+			        </p:effect>  
+			    </p:messages>
+			
+				<p:dataTable  id="grid" var="bug" value="#{testeBean.lazyDataModel}" 
+					paginator="true" rows="10" lazy="true"
+					selection="#{testeBean.selectedBug}" 
+					selectionMode="single"
+					paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"  
+					rowsPerPageTemplate="5,10,25,50,100">
+				
+					<p:column headerText="Title" width="50%" style="white-space:normal !important;" >
+						<h:outputText value="#{bug.title}" />
+					</p:column>
+					
+					<p:column headerText="Opened Date">
+						<h:outputText value="#{bug.openedDate}" >
+							<f:convertDateTime type="date" pattern="dd/MM/yyyy hh:mm:ss" />
+						</h:outputText>
+					</p:column>
+					
+					<p:column headerText="Owner">
+						<h:outputText value="#{bug.owner.email}" />
 					</p:column>
 			       
 				</p:dataTable> 

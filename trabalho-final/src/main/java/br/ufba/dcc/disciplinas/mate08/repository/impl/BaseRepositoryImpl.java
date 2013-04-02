@@ -4,24 +4,24 @@ import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
 
+import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
 import javax.ejb.TransactionManagement;
 import javax.ejb.TransactionManagementType;
-import javax.enterprise.context.Dependent;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Root;
 
-import br.ufba.dcc.disciplinas.mate08.model.BaseEntity;
 import br.ufba.dcc.disciplinas.mate08.repository.BaseRepository;
 
-@Dependent
+@Stateless
 @TransactionManagement(TransactionManagementType.CONTAINER)
-public class BaseRepositoryImpl<ID extends Serializable, E extends BaseEntity<ID>>
+public class BaseRepositoryImpl<ID extends Serializable, E extends Serializable>
 	implements BaseRepository<ID,E> {
 
 	@Inject
@@ -37,9 +37,29 @@ public class BaseRepositoryImpl<ID extends Serializable, E extends BaseEntity<ID
 	}
 	
 	
-	
+		
+	public EntityManager getEntityManager() {
+		return entityManager;
+	}
+
+	public void setEntityManager(EntityManager entityManager) {
+		this.entityManager = entityManager;
+	}
+
+
+
 	public List<E> findAll(){
-		TypedQuery<E> query = createSelectAllQuery();
+		return findAll(null);
+	}
+	
+	public List<E> findAll(String orderBy){
+		TypedQuery<E> query = null;
+		if (orderBy == null || "".equals(orderBy)) {
+			query = createSelectAllQuery();
+		} else {
+			query = createSelectAllQuery(orderBy);
+		}
+		
 		List<E> result = query.getResultList();
 		
 		return result;
@@ -56,8 +76,26 @@ public class BaseRepositoryImpl<ID extends Serializable, E extends BaseEntity<ID
 		return query;
 	}
 	
-	public List<E> findAll(Integer startAt, Integer offset) {
-		TypedQuery<E> query = createSelectAllQuery();
+	private TypedQuery<E> createSelectAllQuery(String orderBy) {
+		CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+		CriteriaQuery<E> criteriaQuery = criteriaBuilder.createQuery(entityClass);
+		
+		Root<E> root = criteriaQuery.from(entityClass);
+		CriteriaQuery<E> select = criteriaQuery.select(root);
+		select.orderBy(criteriaBuilder.asc(root.get(orderBy)));
+		
+		TypedQuery<E> query = entityManager.createQuery(criteriaQuery);
+		return query;		
+	}
+	
+	
+	public List<E> findAll(Integer startAt, Integer offset, String orderBy) {
+		TypedQuery<E> query = null;
+		if (orderBy == null || "".equals(orderBy)) {
+			query = createSelectAllQuery();
+		} else {
+			query = createSelectAllQuery(orderBy);
+		}
 		
 		query
 			.setMaxResults(offset)
@@ -66,6 +104,10 @@ public class BaseRepositoryImpl<ID extends Serializable, E extends BaseEntity<ID
 		List<E> result = query.getResultList();
 		
 		return result;
+	}
+	
+	public List<E> findAll(Integer startAt, Integer offset) {
+		return findAll(startAt, offset, null);
 	}
 	
 	public E findById(ID id) {

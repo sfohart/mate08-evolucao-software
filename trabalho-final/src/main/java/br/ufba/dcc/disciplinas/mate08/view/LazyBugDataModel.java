@@ -1,46 +1,48 @@
 package br.ufba.dcc.disciplinas.mate08.view;
 
-import java.util.List;
-import java.util.Map;
-
-import javax.enterprise.context.Dependent;
 import javax.inject.Inject;
 
 import mining.challenge.android.bugreport.model.Bug;
 
 import org.primefaces.model.LazyDataModel;
-import org.primefaces.model.SortOrder;
 
 import br.ufba.dcc.disciplinas.mate08.qualifier.BugQualifier;
 import br.ufba.dcc.disciplinas.mate08.repository.BugRepository;
 
-@Dependent
-public class LazyBugDataModel extends LazyDataModel<Bug> {
+public abstract class LazyBugDataModel extends LazyDataModel<Bug> {
 
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = -1473031061591313522L;
-
-	@Inject 
+	@Inject
 	@BugQualifier
-	private BugRepository repository;
+	protected BugRepository repository;
+
+	public LazyBugDataModel() {
+		super();
+	}
 
 	@Override
-	public List<Bug> load(
-			int first, 
-			int pageSize,
-			String sortField, 
-			SortOrder sortOrder, 
-			Map<String, String> filters) {
-		
-		List<Bug> data = repository.findAll(first, pageSize);
-		
-        //rowCount  
-        int dataSize = repository.countAll().intValue();  
-        this.setRowCount(dataSize);
-        
-        return data;
+	public void setRowIndex(int rowIndex) {
+	    /*
+	     * The following is in ancestor (LazyDataModel):
+	     * this.rowIndex = rowIndex == -1 ? rowIndex : (rowIndex % pageSize);
+	     */
+	    if (rowIndex == -1 || getPageSize() == 0) {
+	        super.setRowIndex(-1);
+	    }
+	    else {
+	        super.setRowIndex(rowIndex % getPageSize());
+	    }      
+	}
+
+	@Override
+	public Bug getRowData(String rowKey) {
+		Long id = Long.valueOf(rowKey);
+		Bug bug = repository.findById(id);
+		return bug;
+	}
+
+	@Override
+	public Object getRowKey(Bug bug) {		
+		return bug.getId();
 	}
 
 }
