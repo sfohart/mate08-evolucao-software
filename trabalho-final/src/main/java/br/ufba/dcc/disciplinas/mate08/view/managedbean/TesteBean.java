@@ -2,15 +2,14 @@ package br.ufba.dcc.disciplinas.mate08.view.managedbean;
 
 import java.io.Serializable;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ConversationScoped;
-import javax.faces.event.ActionEvent;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import br.ufba.dcc.disciplinas.mate08.lucene.indexer.BugIndexer;
-import br.ufba.dcc.disciplinas.mate08.view.components.LazyOwnedBugDataModel;
-
 import mining.challenge.android.bugreport.model.Bug;
+import br.ufba.dcc.disciplinas.mate08.mahout.classifier.BugClassifier;
+import br.ufba.dcc.disciplinas.mate08.view.components.LazyOwnedBugDataModel;
 
 @Named
 @ConversationScoped
@@ -24,6 +23,13 @@ public class TesteBean implements Serializable {
 	@Inject
 	private LazyOwnedBugDataModel lazyDataModel;
 	
+	@Inject
+	private BugClassifier classifier;
+	
+	@PostConstruct
+	public void init() {
+		classifier.test();
+	}
 	
 	private Bug selectedBug;
 	

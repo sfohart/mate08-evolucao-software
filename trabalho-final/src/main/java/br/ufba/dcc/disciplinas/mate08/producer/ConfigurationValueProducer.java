@@ -89,5 +89,13 @@ public class ConfigurationValueProducer {
 
         return (value != null) ? Integer.valueOf(value) : null;
     }
+	
+	@Produces
+    @ConfigurationValue
+    public Long getLongConfigValue(InjectionPoint ip) {
+        String value = getStringConfigValue(ip);
+
+        return (value != null) ? Long.valueOf(value) : null;
+    }
 
 }

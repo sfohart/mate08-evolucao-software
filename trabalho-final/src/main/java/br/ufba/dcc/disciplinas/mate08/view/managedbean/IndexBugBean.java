@@ -10,6 +10,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 
 import br.ufba.dcc.disciplinas.mate08.lucene.indexer.BugIndexer;
+import br.ufba.dcc.disciplinas.mate08.mahout.vectorizer.BugVectorizer;
 
 @Named
 @ConversationScoped
@@ -23,10 +24,13 @@ public class IndexBugBean implements Serializable {
 	@Inject
 	private BugIndexer bugIndexer;
 	
+	
+	
 	public void createIndex(ActionEvent actionEvent) throws Exception {
-		Integer numDocs = bugIndexer.index();
-		bugIndexer.close();
+		Integer numDocs = bugIndexer.index();	
 		FacesContext.getCurrentInstance().addMessage("Indexação concluída", new FacesMessage(numDocs + " bug(s) indexado(s)."));
 	}
+	
+	
 
 }

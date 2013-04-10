@@ -58,6 +58,12 @@ implements BugRepository {
 		return getEntityManager().createQuery(criteriaQuery).getSingleResult();
 	}
 	
+	@Override
+	public List<Bug> findAll() {
+
+		return super.findAll();
+	}
+	
 	
 	@Override
 	public List<Bug> findAllNotOwnedBugs(Integer startAt, Integer offset) {
@@ -65,6 +71,7 @@ implements BugRepository {
 		CriteriaQuery<Bug> criteriaQuery = criteriaBuilder.createQuery(Bug.class);
 		
 		Root<Bug> root = criteriaQuery.from(Bug.class);
+		
 		CriteriaQuery<Bug> select = criteriaQuery.select(root);
 		select.orderBy(criteriaBuilder.asc(root.get("openedDate")));
 		

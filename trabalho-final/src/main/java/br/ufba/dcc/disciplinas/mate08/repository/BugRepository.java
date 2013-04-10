@@ -9,8 +9,10 @@ public interface BugRepository extends BaseRepository<Long, Bug>, Serializable {
 	
 	public List<Bug> findAllOwnedBugs();	
 	public List<Bug> findAllNotOwnedBugs();
+	
 	public Long countAllOwnedBugs();
 	public Long countAllNotOwnedBugs();
+	
 	public List<Bug> findAllOwnedBugs(Integer startAt, Integer offset);
 	public List<Bug> findAllNotOwnedBugs(Integer startAt, Integer offset);
 

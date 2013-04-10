@@ -16,7 +16,7 @@ public class Bug implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Id
-	private long id;
+	private Long id;
 
 	@Column(name="closed_on")
 	private Timestamp closedOn;
@@ -40,11 +40,11 @@ public class Bug implements Serializable {
 	private String typeBug;
 
 	//bi-directional many-to-one association to Developer
-	@ManyToOne
+	@ManyToOne(fetch=FetchType.EAGER)
 	private Developer owner;
 
 	//bi-directional many-to-one association to Developer
-	@ManyToOne
+	@ManyToOne(fetch=FetchType.EAGER)
 	private Developer reportedBy;
 
 	//bi-directional many-to-one association to BugComment
@@ -55,11 +55,11 @@ public class Bug implements Serializable {
 	public Bug() {
 	}
 
-	public long getId() {
+	public Long getId() {
 		return this.id;
 	}
 
-	public void setId(long id) {
+	public void setId(Long id) {
 		this.id = id;
 	}
 

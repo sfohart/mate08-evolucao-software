@@ -20,7 +20,13 @@
 			        </p:effect>  
 			    </p:messages>
 			    
-			    <p:commandButton value="Indexar Bugs" update="messages" actionListener="#{indexBugBean.createIndex}" />
+			    <p:toolbar>
+			    	<p:toolbarGroup align="left">
+			    		<p:commandButton value="Indexar Bugs" update="messages" actionListener="#{indexBugBean.createIndex}" />
+			    		<p:commandButton value="Criar Vetor de Termos" update="messages" actionListener="#{vectorizeIndexBean.createVector}" />  
+			    	</p:toolbarGroup>
+			    </p:toolbar>
+			    
 			
 				<p:separator />
 			
