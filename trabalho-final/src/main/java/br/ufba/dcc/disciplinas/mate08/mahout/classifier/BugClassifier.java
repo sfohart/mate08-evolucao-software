@@ -1,32 +1,33 @@
 package br.ufba.dcc.disciplinas.mate08.mahout.classifier;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 import mining.challenge.android.bugreport.model.Bug;
-import mining.challenge.android.bugreport.model.Developer;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.util.Version;
+import org.apache.mahout.cf.taste.common.TopK;
 import org.apache.mahout.classifier.sgd.AdaptiveLogisticRegression;
 import org.apache.mahout.classifier.sgd.CrossFoldLearner;
 import org.apache.mahout.classifier.sgd.L1;
+import org.apache.mahout.classifier.sgd.ModelDissector;
 import org.apache.mahout.ep.State;
 import org.apache.mahout.math.RandomAccessSparseVector;
-import org.apache.mahout.math.SequentialAccessSparseVector;
 import org.apache.mahout.math.Vector;
+import org.apache.mahout.math.hadoop.similarity.cooccurrence.Vectors;
 import org.apache.mahout.vectorizer.encoders.AdaptiveWordValueEncoder;
 import org.apache.mahout.vectorizer.encoders.Dictionary;
 import org.apache.mahout.vectorizer.encoders.FeatureVectorEncoder;
@@ -38,6 +39,8 @@ import br.ufba.dcc.disciplinas.mate08.qualifier.ConfigurationValue;
 import br.ufba.dcc.disciplinas.mate08.qualifier.DeveloperQualifier;
 import br.ufba.dcc.disciplinas.mate08.repository.BugRepository;
 import br.ufba.dcc.disciplinas.mate08.repository.DeveloperRepository;
+
+import com.google.common.collect.Maps;
 
 /**
  * 
@@ -58,6 +61,9 @@ public class BugClassifier implements Serializable {
 	private Analyzer analyzer;
 	
 	@Inject
+	private Logger logger;
+	
+	@Inject
 	@DeveloperQualifier
 	private DeveloperRepository developerRepository;
 	
@@ -76,6 +82,14 @@ public class BugClassifier implements Serializable {
 	@Inject
 	@ConfigurationValue(required=true)
 	private Integer componentProbes;
+	
+	@Inject
+	@ConfigurationValue(required=true)
+	private Integer typeProbes;
+	
+	@Inject
+	@ConfigurationValue(required=true)
+	private Integer priorityProbes;
 	
 	@Inject
 	@ConfigurationValue(value="learningAlgorithm.interval")
@@ -105,31 +119,37 @@ public class BugClassifier implements Serializable {
 		this.encoderMap.put(BugIndexer.REPORTED_BY_FIELD, new AdaptiveWordValueEncoder(BugIndexer.REPORTED_BY_FIELD));
 		this.encoderMap.put(BugIndexer.STATUS_FIELD, new AdaptiveWordValueEncoder(BugIndexer.STATUS_FIELD));
 		this.encoderMap.put(BugIndexer.PRIORITY_FIELD, new AdaptiveWordValueEncoder(BugIndexer.PRIORITY_FIELD));
+		this.encoderMap.put(BugIndexer.TYPE_FIELD, new AdaptiveWordValueEncoder(BugIndexer.TYPE_FIELD));
 		
 		LuceneTextValueEncoder descriptionEncoder = new LuceneTextValueEncoder(BugIndexer.DESCRIPTION_FIELD);
 		descriptionEncoder.setAnalyzer(analyzer);	
-		descriptionEncoder.setProbes(descriptionProbes);
 		this.encoderMap.put(BugIndexer.DESCRIPTION_FIELD, descriptionEncoder);
 		
 		LuceneTextValueEncoder titleEncoder = new LuceneTextValueEncoder(BugIndexer.TITLE_FIELD);
 		titleEncoder.setAnalyzer(analyzer);	
-		titleEncoder.setProbes(titleProbes);
 		this.encoderMap.put(BugIndexer.TITLE_FIELD, titleEncoder);
 		
 		LuceneTextValueEncoder componentEncoder = new LuceneTextValueEncoder(BugIndexer.COMPONENT_FIELD);
 		componentEncoder.setAnalyzer(analyzer);
-		componentEncoder.setProbes(componentProbes);
 		this.encoderMap.put(BugIndexer.COMPONENT_FIELD, componentEncoder);
 	}
 	
-	private Integer getCardinality() {
-		return descriptionProbes + titleProbes + componentProbes;
+	protected int getCardinality() {
+		int cardinality = 0;
+		
+		cardinality += titleProbes;
+		cardinality += descriptionProbes;
+//		cardinality += componentProbes;
+//		cardinality += typeProbes;
+//		cardinality += priorityProbes;
+		
+		
+		return cardinality;
 	}
 	
 	public void test() {
-		int categoryCount = developerRepository.countAll().intValue();
 		
-		this.learningAlgorithm = new AdaptiveLogisticRegression(categoryCount, getCardinality(), new L1());
+		this.learningAlgorithm = new AdaptiveLogisticRegression(102, getCardinality(), new L1());
 		this.learningAlgorithm.setInterval(learningInterval);
 		this.learningAlgorithm.setAveragingWindow(averagingWindow);
 		
@@ -142,77 +162,89 @@ public class BugClassifier implements Serializable {
 			//embaralhando a coleção
 			Collections.shuffle(bugs);
 			
-			//construindo um dicionário de "categorias", que correspondem aos emails dos desenvolvedores
-			List<Developer> developers = developerRepository.findAll();
-			if (developers != null && ! developers.isEmpty()) {
-				for (Developer developer : developers) {
-					ownerGroups.intern(developer.getEmail());
-				}
-			}
-			
-			int k = 0;
 			for (Bug bug : bugs) {
 				int actual = ownerGroups.intern(bug.getOwner().getEmail());
 				
 				//codificando o bug num vetor de termos
-				Vector vector = encodeFeatureVector(bug, actual);
+				Vector vector = encodeFeatureVector(bug);
 				
 				//treinando o classificador
 				learningAlgorithm.train(actual, vector);				
-				k++;
 				
 				//melhor resultado encontrado pelo classificador
 				State<AdaptiveLogisticRegression.Wrapper, CrossFoldLearner> best =
-						learningAlgorithm.getBest();
-				
-				if (best != null && (k % learningInterval != 0)) {
-					CrossFoldLearner model = best.getPayload().getLearner();
-					double averageCorrect = model.percentCorrect();
-					double averageLL = model.logLikelihood();
-					System.out.printf("%d\t%.3f\t%.2f\t\n",
-							k, averageLL, averageCorrect * 100);
-				}
+						learningAlgorithm.getBest();				
 			}
 		}
-		 
 		
+		learningAlgorithm.close();
+		CrossFoldLearner learner =
+				learningAlgorithm.getBest().getPayload().getLearner();
+		
+		
+		
+		for (Bug bug : bugs) {
+			Vector input = encodeFeatureVector(bug);
+			Vector result = learner.classifyFull(input);
+			Vector topKScores = Vectors.topKElements(10, result);
+			
+			System.out.println("BugId #" + bug.getId() + "\t- " + bug.getTitle());
+			System.out.println("Owner: " + bug.getOwner().getEmail());
+			System.out.println("Recommended: ");
+			
+			Iterator<Vector.Element> iterator = topKScores.iterateNonZero();
+			
+			
+			while (iterator.hasNext()) {
+				Vector.Element element = iterator.next();
+				
+				System.out.println("\trank " + element.get() + "\t- " + ownerGroups.values().get(element.index()));
+			}
+		}
+		
+	}
+	
+	private void dissect(Dictionary ownerGroups) {
+		
+		
+		CrossFoldLearner model =
+				learningAlgorithm.getBest().getPayload().getLearner();
+		
+		//fechar o modelo para finalizar os pesos
+		model.close();
+		
+		ModelDissector md = new ModelDissector();
+		Map<String, Set<Integer>> traceDictionary =	Maps.newTreeMap();
 		
 	}
 
-	private Vector encodeFeatureVector(Bug bug, int actual) {		
-		LuceneTextValueEncoder descriptionEncoder = (LuceneTextValueEncoder) encoderMap.get(BugIndexer.DESCRIPTION_FIELD);
-		Vector description = encode(bug.getDescription(), descriptionEncoder, descriptionProbes);
+	private Vector encodeFeatureVector(Bug bug) {		
+		
+		Vector vector = new RandomAccessSparseVector(getCardinality());
+		
+		FeatureVectorEncoder titleEncoder  =  encoderMap.get(BugIndexer.TITLE_FIELD);
+		String title = bug.getTitle() != null ? bug.getTitle() : "";
+		titleEncoder.addToVector(title, vector);
 		
 		
-		return description;
+		FeatureVectorEncoder descriptionEncoder =  encoderMap.get(BugIndexer.DESCRIPTION_FIELD);
+		String description = bug.getDescription() != null ? bug.getDescription() : "";
+		descriptionEncoder.addToVector(description, 2.0, vector);
+		
+		/*FeatureVectorEncoder componentEncoder  =  encoderMap.get(BugIndexer.COMPONENT_FIELD);
+		String component = bug.getComponent() != null? bug.getComponent() : "";
+		componentEncoder.addToVector(component, vector);
+		
+		FeatureVectorEncoder priorityEncoder  =  encoderMap.get(BugIndexer.PRIORITY_FIELD);
+		String priority =  bug.getPriority() != null? bug.getPriority() : "";
+		priorityEncoder.addToVector(priority, vector);
+		
+		FeatureVectorEncoder typeEncoder  =  encoderMap.get(BugIndexer.TYPE_FIELD);
+		String type = bug.getTypeBug() != null ? bug.getTypeBug() : "";
+		typeEncoder.addToVector(type, vector);*/
+		
+		
+		return vector;
 	}
 
-	/**
-	 * 
-	 * @see https://raw.github.com/MaineC/sofia/44137f1d76be7c1bb1bd7e745dba23670184f687/sof-trainer/sofia/src/main/java/de/isabeldrostfromm/sof/mahout/StandardVectoriser.java
-	 * 
-	 * @param text
-	 * @param encoder
-	 * @param probes
-	 * @return
-	 */
-	private Vector encode(String text, LuceneTextValueEncoder encoder, int probes) {
-		encoder.addText(text);
-		
-		Vector vector = new RandomAccessSparseVector(probes);
-		encoder.flush(1, vector);
-		
-		return vector;
-	}
-	
-	
-	private Vector encode(int probes, String text, AdaptiveWordValueEncoder encoder) {
-		Vector vector = new SequentialAccessSparseVector(probes);		
-		
-		encoder.setProbes(probes);
-		encoder.addToVector(text, vector);
-		
-		return vector;
-	}
-	
 }
