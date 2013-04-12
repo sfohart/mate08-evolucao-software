@@ -1,6 +1,7 @@
 package br.ufba.dcc.disciplinas.mate08.view.managedbean;
 
 import java.io.Serializable;
+import java.text.ParseException;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ConversationScoped;
@@ -27,7 +28,7 @@ public class TesteBean implements Serializable {
 	private BugClassifier classifier;
 	
 	@PostConstruct
-	public void init() {
+	public void init() throws ParseException {
 		classifier.test();
 	}
 	

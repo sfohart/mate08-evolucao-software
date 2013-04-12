@@ -26,10 +26,10 @@ public class LazyOwnedBugDataModel extends LazyBugDataModel {
 			SortOrder sortOrder, 
 			Map<String, String> filters) {
 		
-		List<Bug> data = repository.findAllOwnedBugs(first, pageSize);
+		List<Bug> data = repository.findAllReleasedOwnedBugs(first, pageSize);
 		
         //rowCount  
-        int dataSize = repository.countAllOwnedBugs().intValue();  
+        int dataSize = repository.countAllReleasedOwnedBugs().intValue();  
         this.setRowCount(dataSize);
         
         setPageSize(pageSize);

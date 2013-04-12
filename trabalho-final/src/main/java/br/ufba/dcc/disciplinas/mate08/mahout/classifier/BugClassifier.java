@@ -3,12 +3,14 @@ package br.ufba.dcc.disciplinas.mate08.mahout.classifier;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -16,14 +18,13 @@ import javax.inject.Inject;
 
 import mining.challenge.android.bugreport.model.Bug;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.util.Version;
-import org.apache.mahout.cf.taste.common.TopK;
 import org.apache.mahout.classifier.sgd.AdaptiveLogisticRegression;
 import org.apache.mahout.classifier.sgd.CrossFoldLearner;
 import org.apache.mahout.classifier.sgd.L1;
-import org.apache.mahout.classifier.sgd.ModelDissector;
 import org.apache.mahout.ep.State;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.Vector;
@@ -39,8 +40,6 @@ import br.ufba.dcc.disciplinas.mate08.qualifier.ConfigurationValue;
 import br.ufba.dcc.disciplinas.mate08.qualifier.DeveloperQualifier;
 import br.ufba.dcc.disciplinas.mate08.repository.BugRepository;
 import br.ufba.dcc.disciplinas.mate08.repository.DeveloperRepository;
-
-import com.google.common.collect.Maps;
 
 /**
  * 
@@ -139,30 +138,38 @@ public class BugClassifier implements Serializable {
 		
 		cardinality += titleProbes;
 		cardinality += descriptionProbes;
-//		cardinality += componentProbes;
-//		cardinality += typeProbes;
-//		cardinality += priorityProbes;
+		cardinality += componentProbes;
+		cardinality += typeProbes;
+		cardinality += priorityProbes;
 		
 		
 		return cardinality;
 	}
 	
-	public void test() {
-		
-		this.learningAlgorithm = new AdaptiveLogisticRegression(102, getCardinality(), new L1());
-		this.learningAlgorithm.setInterval(learningInterval);
-		this.learningAlgorithm.setAveragingWindow(averagingWindow);
-		
+	public void test() throws ParseException {		
 		Dictionary ownerGroups = new Dictionary();
 		
 		//todos os bugs já atribuidos a algum desenvolvedor para usar na fase de treinamento
-		List<Bug> bugs = bugRepository.findAllOwnedBugs();
+		List<Bug> bugs = bugRepository.findAllBugsToExperiment();
+		Collections.shuffle(bugs);
+		for (Bug bug : bugs) {
+			ownerGroups.intern(bug.getOwner().getEmail());
+		}
 		
-		if (bugs != null && ! bugs.isEmpty()) {
+		int numCategories = ownerGroups.values().size();
+		this.learningAlgorithm = new AdaptiveLogisticRegression(numCategories, getCardinality(), new L1());
+		this.learningAlgorithm.setInterval(learningInterval);
+		
+		int trainSize = (int) Math.rint(bugs.size() * 0.8);
+		
+		List<Bug> trainList = bugs.subList(0, trainSize);
+		List<Bug> testList = bugs.subList(trainSize, bugs.size());
+		
+		if (trainList != null && ! trainList.isEmpty()) {
 			//embaralhando a coleção
-			Collections.shuffle(bugs);
+			Collections.shuffle(trainList);
 			
-			for (Bug bug : bugs) {
+			for (Bug bug : trainList) {
 				int actual = ownerGroups.intern(bug.getOwner().getEmail());
 				
 				//codificando o bug num vetor de termos
@@ -181,43 +188,101 @@ public class BugClassifier implements Serializable {
 		CrossFoldLearner learner =
 				learningAlgorithm.getBest().getPayload().getLearner();
 		
+		//ResultAnalyzer resultAnalyzer = new ResultAnalyzer(ownerGroups.values(), "unknow");
+		int topKCorrectlyClassified = 0;
+		int topKIncorrectlyClassified = 0;
+		int bestCorrectlyClassified = 0;
+		int bestIncorrectlyClassified = 0;
 		
-		
-		for (Bug bug : bugs) {
+		continueTest: for (Bug bug : testList) {
 			Vector input = encodeFeatureVector(bug);
-			Vector result = learner.classifyFull(input);
-			Vector topKScores = Vectors.topKElements(10, result);
+			Vector resultScores = learner.classifyFull(input);
+			Vector topKScores = Vectors.topKElements(10, resultScores);
 			
-			System.out.println("BugId #" + bug.getId() + "\t- " + bug.getTitle());
+			/*System.out.println("BugId #" + bug.getId() + "\t- " + bug.getTitle());
 			System.out.println("Owner: " + bug.getOwner().getEmail());
-			System.out.println("Recommended: ");
+			System.out.println("Recommended: ");*/
 			
 			Iterator<Vector.Element> iterator = topKScores.iterateNonZero();
+			
+			String correctLabel = bug.getOwner().getEmail();
+			String classifiedLabel = ownerGroups.values().get(topKScores.maxValueIndex());
+			
+			if (correctLabel.equals(classifiedLabel)) {
+				bestCorrectlyClassified++;
+			} else {
+				bestIncorrectlyClassified++;
+			}
+			
+			/*ClassifierResult result = new ClassifierResult(classifiedLabel, topKScores.get(topKScores.maxValueIndex())); 
+			resultAnalyzer.addInstance(correctLabel, result);*/
 			
 			
 			while (iterator.hasNext()) {
 				Vector.Element element = iterator.next();
+				String topKValue = ownerGroups.values().get(element.index());
 				
-				System.out.println("\trank " + element.get() + "\t- " + ownerGroups.values().get(element.index()));
+				if (topKValue.equals(correctLabel)) {
+					topKCorrectlyClassified++;					
+					continue continueTest;
+				} 
+				//System.out.println("\trank " + element.get() + "\t- " + topKValue);
 			}
+			
+			topKIncorrectlyClassified++;
+			
+			
 		}
+		
+		StringBuilder returnString = new StringBuilder();
+	    
+		returnString.append("===================================================================\n");
+	    returnString.append("Summary (top 10)\n");
+	    returnString.append("-------------------------------------------------------\n");
+	    
+	    int topKTotalClassified = topKCorrectlyClassified + topKIncorrectlyClassified;
+	    double topKPercentageCorrect = (double) 100 * topKCorrectlyClassified / topKTotalClassified;
+	    double topKPercentageIncorrect = (double) 100 * topKIncorrectlyClassified / topKTotalClassified;
+	    
+	    NumberFormat decimalFormatter = new DecimalFormat("0.####");
+	    
+	    returnString.append(StringUtils.rightPad("Top K Correctly Classified Instances", 40)).append(": ").append(
+	    		StringUtils.leftPad(Integer.toString(topKCorrectlyClassified), 10)).append('\t').append(
+	    				StringUtils.leftPad(decimalFormatter.format(topKPercentageCorrect), 10)).append("%\n");
+	    returnString.append(StringUtils.rightPad("Top K Incorrectly Classified Instances", 40)).append(": ").append(
+	    		StringUtils.leftPad(Integer.toString(topKIncorrectlyClassified), 10)).append('\t').append(
+	    				StringUtils.leftPad(decimalFormatter.format(topKPercentageIncorrect), 10)).append("%\n");
+	    returnString.append(StringUtils.rightPad("Total Classified Instances", 40)).append(": ").append(
+	    		StringUtils.leftPad(Integer.toString(topKTotalClassified), 10)).append('\n');
+	    returnString.append('\n');
+
+	    System.out.println(returnString.toString());
+	    returnString = new StringBuilder();
+	    
+	    returnString.append("===================================================================\n");
+	    returnString.append("Summary (best)\n");
+	    returnString.append("-------------------------------------------------------\n");
+	    
+	    int bestTotalClassified = bestCorrectlyClassified + bestIncorrectlyClassified;
+	    double bestPercentageCorrect = (double) 100 * bestCorrectlyClassified / bestTotalClassified;
+	    double bestPercentageIncorrect = (double) 100 * bestIncorrectlyClassified / bestTotalClassified;
+	    
+	    returnString.append(StringUtils.rightPad("Correctly Classified Instances", 40)).append(": ").append(
+	    		StringUtils.leftPad(Integer.toString(bestCorrectlyClassified), 10)).append('\t').append(
+	    				StringUtils.leftPad(decimalFormatter.format(bestPercentageCorrect), 10)).append("%\n");
+	    returnString.append(StringUtils.rightPad("Incorrectly Classified Instances", 40)).append(": ").append(
+	    		StringUtils.leftPad(Integer.toString(bestIncorrectlyClassified), 10)).append('\t').append(
+	    				StringUtils.leftPad(decimalFormatter.format(bestPercentageIncorrect), 10)).append("%\n");
+	    returnString.append(StringUtils.rightPad("Total Classified Instances", 40)).append(": ").append(
+	    		StringUtils.leftPad(Integer.toString(bestTotalClassified), 10)).append('\n');
+	    
+	    System.out.println(returnString.toString());
+	    
+	    //System.out.println(resultAnalyzer.toString());
+		
 		
 	}
 	
-	private void dissect(Dictionary ownerGroups) {
-		
-		
-		CrossFoldLearner model =
-				learningAlgorithm.getBest().getPayload().getLearner();
-		
-		//fechar o modelo para finalizar os pesos
-		model.close();
-		
-		ModelDissector md = new ModelDissector();
-		Map<String, Set<Integer>> traceDictionary =	Maps.newTreeMap();
-		
-	}
-
 	private Vector encodeFeatureVector(Bug bug) {		
 		
 		Vector vector = new RandomAccessSparseVector(getCardinality());
@@ -231,7 +296,7 @@ public class BugClassifier implements Serializable {
 		String description = bug.getDescription() != null ? bug.getDescription() : "";
 		descriptionEncoder.addToVector(description, 2.0, vector);
 		
-		/*FeatureVectorEncoder componentEncoder  =  encoderMap.get(BugIndexer.COMPONENT_FIELD);
+		FeatureVectorEncoder componentEncoder  =  encoderMap.get(BugIndexer.COMPONENT_FIELD);
 		String component = bug.getComponent() != null? bug.getComponent() : "";
 		componentEncoder.addToVector(component, vector);
 		
@@ -241,7 +306,7 @@ public class BugClassifier implements Serializable {
 		
 		FeatureVectorEncoder typeEncoder  =  encoderMap.get(BugIndexer.TYPE_FIELD);
 		String type = bug.getTypeBug() != null ? bug.getTypeBug() : "";
-		typeEncoder.addToVector(type, vector);*/
+		typeEncoder.addToVector(type, vector);
 		
 		
 		return vector;
