@@ -12,8 +12,8 @@ public interface BugRepository extends BaseRepository<Long, Bug>, Serializable {
 	public List<Bug> findAllNotOwnedBugs();
 	
 	
-	public List<Bug> findAllBugsToExperiment() throws ParseException;
-	public List<Bug> findAllBugsToExperiment(Integer startAt, Integer offset) throws ParseException;
+	public List<Bug> findAllBugsToExperiment(Integer numLastMonths, Long minTotalBugsPerDeveloper) throws ParseException;
+	public List<Bug> findAllBugsToExperiment(Integer numLastMonths, Long minTotalBugsPerDeveloper, Integer startAt, Integer offset) ;
 	
 	public Long countAllReleasedOwnedBugs();
 	public Long countAllNotOwnedBugs();

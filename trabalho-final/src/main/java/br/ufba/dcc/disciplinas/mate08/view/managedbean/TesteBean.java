@@ -1,5 +1,6 @@
 package br.ufba.dcc.disciplinas.mate08.view.managedbean;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.text.ParseException;
 
@@ -10,6 +11,7 @@ import javax.inject.Named;
 
 import mining.challenge.android.bugreport.model.Bug;
 import br.ufba.dcc.disciplinas.mate08.mahout.classifier.BugClassifier;
+import br.ufba.dcc.disciplinas.mate08.qualifier.BugClassifierQualifier;
 import br.ufba.dcc.disciplinas.mate08.view.components.LazyOwnedBugDataModel;
 
 @Named
@@ -25,14 +27,17 @@ public class TesteBean implements Serializable {
 	private LazyOwnedBugDataModel lazyDataModel;
 	
 	@Inject
+	@BugClassifierQualifier
 	private BugClassifier classifier;
 	
-	@PostConstruct
-	public void init() throws ParseException {
-		classifier.test();
-	}
-	
 	private Bug selectedBug;
+	
+	@PostConstruct
+	public void init() throws ParseException, IOException {
+		for (int i = 0; i < 100; i++) {
+			classifier.trainClassifier();
+		}
+	}
 	
 	public Bug getSelectedBug() {
 		return selectedBug;

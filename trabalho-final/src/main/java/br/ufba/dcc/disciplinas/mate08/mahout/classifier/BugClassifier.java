@@ -1,22 +1,30 @@
 package br.ufba.dcc.disciplinas.mate08.mahout.classifier;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
+import javax.enterprise.context.Dependent;
 import javax.inject.Inject;
 
 import mining.challenge.android.bugreport.model.Bug;
+import mining.challenge.android.bugreport.model.Developer;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.analysis.Analyzer;
@@ -25,21 +33,26 @@ import org.apache.lucene.util.Version;
 import org.apache.mahout.classifier.sgd.AdaptiveLogisticRegression;
 import org.apache.mahout.classifier.sgd.CrossFoldLearner;
 import org.apache.mahout.classifier.sgd.L1;
+import org.apache.mahout.classifier.sgd.ModelDissector;
 import org.apache.mahout.ep.State;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.hadoop.similarity.cooccurrence.Vectors;
+import org.apache.mahout.math.stats.LogLikelihood.ScoredItem;
 import org.apache.mahout.vectorizer.encoders.AdaptiveWordValueEncoder;
 import org.apache.mahout.vectorizer.encoders.Dictionary;
 import org.apache.mahout.vectorizer.encoders.FeatureVectorEncoder;
 import org.apache.mahout.vectorizer.encoders.LuceneTextValueEncoder;
 
 import br.ufba.dcc.disciplinas.mate08.lucene.indexer.BugIndexer;
+import br.ufba.dcc.disciplinas.mate08.qualifier.BugClassifierQualifier;
 import br.ufba.dcc.disciplinas.mate08.qualifier.BugQualifier;
 import br.ufba.dcc.disciplinas.mate08.qualifier.ConfigurationValue;
 import br.ufba.dcc.disciplinas.mate08.qualifier.DeveloperQualifier;
 import br.ufba.dcc.disciplinas.mate08.repository.BugRepository;
 import br.ufba.dcc.disciplinas.mate08.repository.DeveloperRepository;
+
+import com.google.common.collect.Lists;
 
 /**
  * 
@@ -48,6 +61,8 @@ import br.ufba.dcc.disciplinas.mate08.repository.DeveloperRepository;
  * @author leandro.ferreira
  *
  */
+@Dependent
+@BugClassifierQualifier
 public class BugClassifier implements Serializable {
 
 	/**
@@ -100,6 +115,7 @@ public class BugClassifier implements Serializable {
 	
 	
 	private Map<String, FeatureVectorEncoder> encoderMap;
+	private Dictionary ownerGroups;
 	
 	@PostConstruct
 	public void init() throws URISyntaxException, IOException {		
@@ -146,11 +162,53 @@ public class BugClassifier implements Serializable {
 		return cardinality;
 	}
 	
-	public void test() throws ParseException {		
-		Dictionary ownerGroups = new Dictionary();
+	
+	private Vector classify(Bug bug) {
+		CrossFoldLearner learner =
+				learningAlgorithm.getBest().getPayload().getLearner();
+		
+		Vector vector = encodeFeatureVector(bug);
+		Vector resultScores = learner.classifyFull(vector);
+		
+		return resultScores;
+	}
+	
+	public List<ScoredItem<Developer>> classifyTopK(Bug bug, int limit) {
+		Vector vector = classify(bug);
+		Vector topKScores = Vectors.topKElements(limit, vector);
+		
+		PriorityQueue<ScoredItem<Developer>> priorityQueue = new PriorityQueue<ScoredItem<Developer>>();
+		Iterator<Vector.Element> iterator = topKScores.iterateNonZero();
+		while (iterator.hasNext()) {
+			Vector.Element element = iterator.next();
+			String emailDeveloper = ownerGroups.values().get(element.index());
+			Developer developer = developerRepository.findByEmail(emailDeveloper);
+			
+			priorityQueue.add(new ScoredItem<Developer>(developer, element.get()));
+			
+			while (priorityQueue.size() > limit) {
+				priorityQueue.poll();
+			}
+		}
+		
+		return Lists.newArrayList(priorityQueue);		
+	}
+	
+	public Developer classifyBest(Bug bug) {
+		Vector vector = classify(bug);
+		int developerIndex = vector.maxValueIndex();
+		
+		String emailDeveloper = ownerGroups.values().get(developerIndex);
+		
+		Developer developer = developerRepository.findByEmail(emailDeveloper);
+		return developer;
+	}
+	
+	public void trainClassifier() throws ParseException, IOException {		
+		ownerGroups = new Dictionary();
 		
 		//todos os bugs já atribuidos a algum desenvolvedor para usar na fase de treinamento
-		List<Bug> bugs = bugRepository.findAllBugsToExperiment();
+		List<Bug> bugs = bugRepository.findAllBugsToExperiment(3, 9L);
 		Collections.shuffle(bugs);
 		for (Bug bug : bugs) {
 			ownerGroups.intern(bug.getOwner().getEmail());
@@ -185,10 +243,52 @@ public class BugClassifier implements Serializable {
 		}
 		
 		learningAlgorithm.close();
+		
+		dissecTest(ownerGroups, testList);
+		analyzeTest(ownerGroups, testList);
+		
+	}
+
+	private void dissecTest(Dictionary ownerGroups, List<Bug> testList) {
+		ModelDissector dissector = new ModelDissector();
 		CrossFoldLearner learner =
 				learningAlgorithm.getBest().getPayload().getLearner();
 		
-		//ResultAnalyzer resultAnalyzer = new ResultAnalyzer(ownerGroups.values(), "unknow");
+		Map<String, Set<Integer>> traceDictionary = new HashMap<String, Set<Integer>>();
+		for (String key : encoderMap.keySet()) {
+			FeatureVectorEncoder encoder = encoderMap.get(key);
+			encoder.setTraceDictionary(traceDictionary);
+			encoderMap.put(key, encoder);
+		}
+		
+		for (Bug bug : testList) {
+			traceDictionary.clear();
+			Vector v = encodeFeatureVector(bug);
+			dissector.update(v, traceDictionary, learner);
+		}
+		
+		List<ModelDissector.Weight> weights = dissector.summary(100);
+		for (ModelDissector.Weight w : weights) {
+			System.out.printf("%s\t%.1f\n", w.getFeature(), w.getWeight());
+		}
+	}
+	
+	
+	/**
+	 * @param ownerGroups
+	 * @param testList
+	 * @throws IOException 
+	 */
+	private void analyzeTest(Dictionary ownerGroups, List<Bug> testList) throws IOException {
+		int topK = 5;
+		
+		File file = new File(System.getProperty("java.io.tmpdir"), "statistic.txt");
+		FileWriter writer = new FileWriter(file, true);
+		System.out.println(file.getAbsolutePath());
+		
+		CrossFoldLearner learner =
+				learningAlgorithm.getBest().getPayload().getLearner();
+		
 		int topKCorrectlyClassified = 0;
 		int topKIncorrectlyClassified = 0;
 		int bestCorrectlyClassified = 0;
@@ -197,11 +297,7 @@ public class BugClassifier implements Serializable {
 		continueTest: for (Bug bug : testList) {
 			Vector input = encodeFeatureVector(bug);
 			Vector resultScores = learner.classifyFull(input);
-			Vector topKScores = Vectors.topKElements(10, resultScores);
-			
-			/*System.out.println("BugId #" + bug.getId() + "\t- " + bug.getTitle());
-			System.out.println("Owner: " + bug.getOwner().getEmail());
-			System.out.println("Recommended: ");*/
+			Vector topKScores = Vectors.topKElements(topK, resultScores);
 			
 			Iterator<Vector.Element> iterator = topKScores.iterateNonZero();
 			
@@ -214,9 +310,6 @@ public class BugClassifier implements Serializable {
 				bestIncorrectlyClassified++;
 			}
 			
-			/*ClassifierResult result = new ClassifierResult(classifiedLabel, topKScores.get(topKScores.maxValueIndex())); 
-			resultAnalyzer.addInstance(correctLabel, result);*/
-			
 			
 			while (iterator.hasNext()) {
 				Vector.Element element = iterator.next();
@@ -226,7 +319,6 @@ public class BugClassifier implements Serializable {
 					topKCorrectlyClassified++;					
 					continue continueTest;
 				} 
-				//System.out.println("\trank " + element.get() + "\t- " + topKValue);
 			}
 			
 			topKIncorrectlyClassified++;
@@ -234,17 +326,21 @@ public class BugClassifier implements Serializable {
 			
 		}
 		
+		
+		
 		StringBuilder returnString = new StringBuilder();
 	    
 		returnString.append("===================================================================\n");
-	    returnString.append("Summary (top 10)\n");
+	    returnString.append("Summary (top " + topK + ")\n");
 	    returnString.append("-------------------------------------------------------\n");
 	    
 	    int topKTotalClassified = topKCorrectlyClassified + topKIncorrectlyClassified;
 	    double topKPercentageCorrect = (double) 100 * topKCorrectlyClassified / topKTotalClassified;
 	    double topKPercentageIncorrect = (double) 100 * topKIncorrectlyClassified / topKTotalClassified;
 	    
-	    NumberFormat decimalFormatter = new DecimalFormat("0.####");
+	    NumberFormat decimalFormatter = new DecimalFormat("0.0####", DecimalFormatSymbols.getInstance(Locale.US));
+	    
+	    
 	    
 	    returnString.append(StringUtils.rightPad("Top K Correctly Classified Instances", 40)).append(": ").append(
 	    		StringUtils.leftPad(Integer.toString(topKCorrectlyClassified), 10)).append('\t').append(
@@ -278,9 +374,14 @@ public class BugClassifier implements Serializable {
 	    
 	    System.out.println(returnString.toString());
 	    
-	    //System.out.println(resultAnalyzer.toString());
-		
-		
+	    
+	    
+	    writer.append(String.format("%s,%s,%s,%s\n", 
+	    		decimalFormatter.format(bestPercentageCorrect), 
+				decimalFormatter.format(bestPercentageIncorrect), 
+				decimalFormatter.format(topKPercentageCorrect), 
+				decimalFormatter.format(topKPercentageIncorrect)));
+	    writer.close();
 	}
 	
 	private Vector encodeFeatureVector(Bug bug) {		
@@ -290,7 +391,6 @@ public class BugClassifier implements Serializable {
 		FeatureVectorEncoder titleEncoder  =  encoderMap.get(BugIndexer.TITLE_FIELD);
 		String title = bug.getTitle() != null ? bug.getTitle() : "";
 		titleEncoder.addToVector(title, vector);
-		
 		
 		FeatureVectorEncoder descriptionEncoder =  encoderMap.get(BugIndexer.DESCRIPTION_FIELD);
 		String description = bug.getDescription() != null ? bug.getDescription() : "";
@@ -307,7 +407,6 @@ public class BugClassifier implements Serializable {
 		FeatureVectorEncoder typeEncoder  =  encoderMap.get(BugIndexer.TYPE_FIELD);
 		String type = bug.getTypeBug() != null ? bug.getTypeBug() : "";
 		typeEncoder.addToVector(type, vector);
-		
 		
 		return vector;
 	}
