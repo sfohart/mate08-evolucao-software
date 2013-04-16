@@ -34,8 +34,12 @@ public class TesteBean implements Serializable {
 	
 	@PostConstruct
 	public void init() throws ParseException, IOException {
-		for (int i = 0; i < 100; i++) {
-			classifier.trainClassifier();
+		int[] topKValues = {3,5,10};
+		
+		for (int topK : topKValues) {
+			for (int i = 0; i < 100; i++) {
+				classifier.trainClassifier(topK);
+			}
 		}
 	}
 	
@@ -46,8 +50,6 @@ public class TesteBean implements Serializable {
 	public void setSelectedBug(Bug selectedBug) {
 		this.selectedBug = selectedBug;
 	}
-	
-	
 
 	public LazyOwnedBugDataModel getLazyDataModel() {
 		return lazyDataModel;

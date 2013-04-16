@@ -204,7 +204,7 @@ public class BugClassifier implements Serializable {
 		return developer;
 	}
 	
-	public void trainClassifier() throws ParseException, IOException {		
+	public void trainClassifier(int topK) throws ParseException, IOException {		
 		ownerGroups = new Dictionary();
 		
 		//todos os bugs já atribuidos a algum desenvolvedor para usar na fase de treinamento
@@ -245,7 +245,7 @@ public class BugClassifier implements Serializable {
 		learningAlgorithm.close();
 		
 		dissecTest(ownerGroups, testList);
-		analyzeTest(ownerGroups, testList);
+		analyzeTest(ownerGroups, testList, topK);
 		
 	}
 
@@ -279,9 +279,7 @@ public class BugClassifier implements Serializable {
 	 * @param testList
 	 * @throws IOException 
 	 */
-	private void analyzeTest(Dictionary ownerGroups, List<Bug> testList) throws IOException {
-		int topK = 5;
-		
+	private void analyzeTest(Dictionary ownerGroups, List<Bug> testList, int topK) throws IOException {
 		File file = new File(System.getProperty("java.io.tmpdir"), "statistic.txt");
 		FileWriter writer = new FileWriter(file, true);
 		System.out.println(file.getAbsolutePath());
@@ -327,60 +325,23 @@ public class BugClassifier implements Serializable {
 		}
 		
 		
-		
-		StringBuilder returnString = new StringBuilder();
-	    
-		returnString.append("===================================================================\n");
-	    returnString.append("Summary (top " + topK + ")\n");
-	    returnString.append("-------------------------------------------------------\n");
-	    
 	    int topKTotalClassified = topKCorrectlyClassified + topKIncorrectlyClassified;
 	    double topKPercentageCorrect = (double) 100 * topKCorrectlyClassified / topKTotalClassified;
 	    double topKPercentageIncorrect = (double) 100 * topKIncorrectlyClassified / topKTotalClassified;
 	    
 	    NumberFormat decimalFormatter = new DecimalFormat("0.0####", DecimalFormatSymbols.getInstance(Locale.US));
 	    
-	    
-	    
-	    returnString.append(StringUtils.rightPad("Top K Correctly Classified Instances", 40)).append(": ").append(
-	    		StringUtils.leftPad(Integer.toString(topKCorrectlyClassified), 10)).append('\t').append(
-	    				StringUtils.leftPad(decimalFormatter.format(topKPercentageCorrect), 10)).append("%\n");
-	    returnString.append(StringUtils.rightPad("Top K Incorrectly Classified Instances", 40)).append(": ").append(
-	    		StringUtils.leftPad(Integer.toString(topKIncorrectlyClassified), 10)).append('\t').append(
-	    				StringUtils.leftPad(decimalFormatter.format(topKPercentageIncorrect), 10)).append("%\n");
-	    returnString.append(StringUtils.rightPad("Total Classified Instances", 40)).append(": ").append(
-	    		StringUtils.leftPad(Integer.toString(topKTotalClassified), 10)).append('\n');
-	    returnString.append('\n');
-
-	    System.out.println(returnString.toString());
-	    returnString = new StringBuilder();
-	    
-	    returnString.append("===================================================================\n");
-	    returnString.append("Summary (best)\n");
-	    returnString.append("-------------------------------------------------------\n");
-	    
 	    int bestTotalClassified = bestCorrectlyClassified + bestIncorrectlyClassified;
 	    double bestPercentageCorrect = (double) 100 * bestCorrectlyClassified / bestTotalClassified;
 	    double bestPercentageIncorrect = (double) 100 * bestIncorrectlyClassified / bestTotalClassified;
-	    
-	    returnString.append(StringUtils.rightPad("Correctly Classified Instances", 40)).append(": ").append(
-	    		StringUtils.leftPad(Integer.toString(bestCorrectlyClassified), 10)).append('\t').append(
-	    				StringUtils.leftPad(decimalFormatter.format(bestPercentageCorrect), 10)).append("%\n");
-	    returnString.append(StringUtils.rightPad("Incorrectly Classified Instances", 40)).append(": ").append(
-	    		StringUtils.leftPad(Integer.toString(bestIncorrectlyClassified), 10)).append('\t').append(
-	    				StringUtils.leftPad(decimalFormatter.format(bestPercentageIncorrect), 10)).append("%\n");
-	    returnString.append(StringUtils.rightPad("Total Classified Instances", 40)).append(": ").append(
-	    		StringUtils.leftPad(Integer.toString(bestTotalClassified), 10)).append('\n');
-	    
-	    System.out.println(returnString.toString());
-	    
-	    
-	    
-	    writer.append(String.format("%s,%s,%s,%s\n", 
+	    	    
+	    writer.append(String.format("%d,%s,%s,%s,%s\n",
+	    		topK,
 	    		decimalFormatter.format(bestPercentageCorrect), 
 				decimalFormatter.format(bestPercentageIncorrect), 
 				decimalFormatter.format(topKPercentageCorrect), 
 				decimalFormatter.format(topKPercentageIncorrect)));
+	    
 	    writer.close();
 	}
 	
