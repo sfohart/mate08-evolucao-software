@@ -97,5 +97,15 @@ public class ConfigurationValueProducer {
 
         return (value != null) ? Long.valueOf(value) : null;
     }
+	
+	@Produces
+	@ConfigurationValue
+	public Boolean getBooleanConfigValue(InjectionPoint ip) {
+		String value = getStringConfigValue(ip);
+		
+		
+		return (value != null) ? Boolean.valueOf(value) : null;
+	}
+	
 
 }

@@ -1,15 +1,18 @@
 package br.ufba.dcc.disciplinas.mate08.mahout.classifier;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -26,7 +29,6 @@ import javax.inject.Inject;
 import mining.challenge.android.bugreport.model.Bug;
 import mining.challenge.android.bugreport.model.Developer;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.util.Version;
@@ -38,13 +40,13 @@ import org.apache.mahout.ep.State;
 import org.apache.mahout.math.RandomAccessSparseVector;
 import org.apache.mahout.math.Vector;
 import org.apache.mahout.math.hadoop.similarity.cooccurrence.Vectors;
-import org.apache.mahout.math.stats.LogLikelihood.ScoredItem;
 import org.apache.mahout.vectorizer.encoders.AdaptiveWordValueEncoder;
 import org.apache.mahout.vectorizer.encoders.Dictionary;
 import org.apache.mahout.vectorizer.encoders.FeatureVectorEncoder;
 import org.apache.mahout.vectorizer.encoders.LuceneTextValueEncoder;
 
 import br.ufba.dcc.disciplinas.mate08.lucene.indexer.BugIndexer;
+import br.ufba.dcc.disciplinas.mate08.model.ScoredItem;
 import br.ufba.dcc.disciplinas.mate08.qualifier.BugClassifierQualifier;
 import br.ufba.dcc.disciplinas.mate08.qualifier.BugQualifier;
 import br.ufba.dcc.disciplinas.mate08.qualifier.ConfigurationValue;
@@ -70,12 +72,20 @@ public class BugClassifier implements Serializable {
 	 */
 	private static final long serialVersionUID = -2517748248513800802L;
 	
-	
 	private AdaptiveLogisticRegression learningAlgorithm;
 	private Analyzer analyzer;
 	
 	@Inject
+	@ConfigurationValue
+	private String stopWordsListPath;
+	
+	@Inject
 	private Logger logger;
+	
+	@Inject
+	@ConfigurationValue(required=true)
+	private Boolean testMinPosition;
+	
 	
 	@Inject
 	@DeveloperQualifier
@@ -119,7 +129,12 @@ public class BugClassifier implements Serializable {
 	
 	@PostConstruct
 	public void init() throws URISyntaxException, IOException {		
-		this.analyzer = new StandardAnalyzer(Version.LUCENE_36);
+		
+		URL stopWordFilePath = getClass().getClassLoader().getResource(stopWordsListPath);
+		
+		FileReader stopWordsReader = new FileReader(new File(stopWordFilePath.toURI()));
+		
+		this.analyzer = new StandardAnalyzer(Version.LUCENE_36, stopWordsReader);
 		
 		initEncoderMap();		
 	}
@@ -177,7 +192,10 @@ public class BugClassifier implements Serializable {
 		Vector vector = classify(bug);
 		Vector topKScores = Vectors.topKElements(limit, vector);
 		
+		
 		PriorityQueue<ScoredItem<Developer>> priorityQueue = new PriorityQueue<ScoredItem<Developer>>();
+		
+		
 		Iterator<Vector.Element> iterator = topKScores.iterateNonZero();
 		while (iterator.hasNext()) {
 			Vector.Element element = iterator.next();
@@ -191,7 +209,10 @@ public class BugClassifier implements Serializable {
 			}
 		}
 		
-		return Lists.newArrayList(priorityQueue);		
+		List<ScoredItem<Developer>> list = Lists.newArrayList(priorityQueue);
+		Collections.sort(list, Collections.reverseOrder());
+		
+		return list;
 	}
 	
 	public Developer classifyBest(Bug bug) {
@@ -244,7 +265,7 @@ public class BugClassifier implements Serializable {
 		
 		learningAlgorithm.close();
 		
-		dissecTest(ownerGroups, testList);
+		//dissecTest(ownerGroups, testList);
 		analyzeTest(ownerGroups, testList, topK);
 		
 	}
@@ -280,19 +301,56 @@ public class BugClassifier implements Serializable {
 	 * @throws IOException 
 	 */
 	private void analyzeTest(Dictionary ownerGroups, List<Bug> testList, int topK) throws IOException {
-		File file = new File(System.getProperty("java.io.tmpdir"), "statistic.txt");
-		FileWriter writer = new FileWriter(file, true);
-		System.out.println(file.getAbsolutePath());
+		File summarizeFile = new File(System.getProperty("java.io.tmpdir"), "summarize-statistic.txt");
+		FileWriter summarizeWriter = new FileWriter(summarizeFile, true);
 		
-		CrossFoldLearner learner =
-				learningAlgorithm.getBest().getPayload().getLearner();
+		File kMinFile = new File(System.getProperty("java.io.tmpdir"), "kmin-statistic.txt");
+		FileWriter kMinWriter = new FileWriter(kMinFile, true);
+		
+		
+		if (testMinPosition) {
+			System.out.println(kMinFile.getAbsolutePath());
+		} else {
+			System.out.println(summarizeFile.getAbsolutePath());			
+		}
 		
 		int topKCorrectlyClassified = 0;
 		int topKIncorrectlyClassified = 0;
-		int bestCorrectlyClassified = 0;
-		int bestIncorrectlyClassified = 0;
+		
 		
 		continueTest: for (Bug bug : testList) {
+			int minPositionInList = Integer.MAX_VALUE;
+			
+			List<ScoredItem<Developer>> topKList = classifyTopK(bug, topK);
+			String correctLabel = bug.getOwner().getEmail();
+			
+			for (int i = 0; i < topKList.size(); i++) {
+				Developer developer = topKList.get(i).getItem();
+				
+				if (correctLabel.equals(developer.getEmail())) {
+					
+					if (testMinPosition) {
+						if (i + 1 < minPositionInList) {
+							minPositionInList = i + 1;
+							break;
+						}						
+					} else {						
+						topKCorrectlyClassified++;
+						continue continueTest;
+					}
+															
+					
+				}					
+			}
+			
+			if (! testMinPosition) {
+				topKIncorrectlyClassified++;
+			} else {
+				kMinWriter.append(String.format("%d,%d\n",bug.getId(), minPositionInList));
+			}
+		}
+		
+		/*continueTest: for (Bug bug : testList) {			
 			Vector input = encodeFeatureVector(bug);
 			Vector resultScores = learner.classifyFull(input);
 			Vector topKScores = Vectors.topKElements(topK, resultScores);
@@ -301,13 +359,6 @@ public class BugClassifier implements Serializable {
 			
 			String correctLabel = bug.getOwner().getEmail();
 			String classifiedLabel = ownerGroups.values().get(topKScores.maxValueIndex());
-			
-			if (correctLabel.equals(classifiedLabel)) {
-				bestCorrectlyClassified++;
-			} else {
-				bestIncorrectlyClassified++;
-			}
-			
 			
 			while (iterator.hasNext()) {
 				Vector.Element element = iterator.next();
@@ -322,27 +373,28 @@ public class BugClassifier implements Serializable {
 			topKIncorrectlyClassified++;
 			
 			
-		}
+		}*/
 		
 		
-	    int topKTotalClassified = topKCorrectlyClassified + topKIncorrectlyClassified;
-	    double topKPercentageCorrect = (double) 100 * topKCorrectlyClassified / topKTotalClassified;
-	    double topKPercentageIncorrect = (double) 100 * topKIncorrectlyClassified / topKTotalClassified;
+		if (! testMinPosition) {
+			int topKTotalClassified = topKCorrectlyClassified + topKIncorrectlyClassified;
+			double topKPercentageCorrect = (double) 100 * topKCorrectlyClassified / topKTotalClassified;
+			double topKPercentageIncorrect = (double) 100 * topKIncorrectlyClassified / topKTotalClassified;
+			
+			NumberFormat decimalFormatter = new DecimalFormat("0.0####", DecimalFormatSymbols.getInstance(Locale.US));
+			
+			String log = String.format("%d,%s,%s\n",
+					topK,	    		 
+					decimalFormatter.format(topKPercentageCorrect), 
+					decimalFormatter.format(topKPercentageIncorrect)
+					);
+			
+			System.out.println(log);
+			summarizeWriter.append(log);
+		} 
 	    
-	    NumberFormat decimalFormatter = new DecimalFormat("0.0####", DecimalFormatSymbols.getInstance(Locale.US));
-	    
-	    int bestTotalClassified = bestCorrectlyClassified + bestIncorrectlyClassified;
-	    double bestPercentageCorrect = (double) 100 * bestCorrectlyClassified / bestTotalClassified;
-	    double bestPercentageIncorrect = (double) 100 * bestIncorrectlyClassified / bestTotalClassified;
-	    	    
-	    writer.append(String.format("%d,%s,%s,%s,%s\n",
-	    		topK,
-	    		decimalFormatter.format(bestPercentageCorrect), 
-				decimalFormatter.format(bestPercentageIncorrect), 
-				decimalFormatter.format(topKPercentageCorrect), 
-				decimalFormatter.format(topKPercentageIncorrect)));
-	    
-	    writer.close();
+	    summarizeWriter.close();
+	    kMinWriter.close();
 	}
 	
 	private Vector encodeFeatureVector(Bug bug) {		

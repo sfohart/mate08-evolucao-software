@@ -114,5 +114,10 @@ public class Developer implements Serializable {
 
 		return bugComment;
 	}
+	
+	@Override
+	public String toString() {		
+		return getEmail() != null ? getEmail() : "unknow";
+	}
 
 }

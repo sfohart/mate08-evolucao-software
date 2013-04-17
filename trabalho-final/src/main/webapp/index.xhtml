@@ -19,21 +19,13 @@
 			            <f:param name="mode" value="'show'" />  
 			        </p:effect>  
 			    </p:messages>
-			    
-			    <p:toolbar>
-			    	<p:toolbarGroup align="left">
-			    		<p:commandButton value="Indexar Bugs" update="messages" actionListener="#{indexBugBean.createIndex}" />
-			    		<p:commandButton value="Criar Vetor de Termos" update="messages" actionListener="#{vectorizeIndexBean.createVector}" />  
-			    	</p:toolbarGroup>
-			    </p:toolbar>
-			    
-			
+			 
 				<p:separator />
 			
 				<p:dataTable  id="grid" var="bug" value="#{testeBean.lazyDataModel}" 
 					paginator="true" rows="10" lazy="true"
 					selection="#{testeBean.selectedBug}" 
-					selectionMode="single"
+					selectionMode="single" 
 					paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"  
 					rowsPerPageTemplate="5,10,25,50,100">
 				
@@ -53,6 +45,17 @@
 			       
 				</p:dataTable> 
 				
+				<p:panel rendered="#{not empty testeBean.selectedBug}">
+					<p:dataTable var="scoredItem" value="#{testeBean.topKDevelopers}">
+						<p:column headerText="Developer">
+							<h:outputText value="#{scoredItem.item.email}" />
+						</p:column>
+						
+						<p:column headerText="Rank">
+							<h:outputText value="#{scoredItem.score}" />
+						</p:column>
+					</p:dataTable>
+				</p:panel>
 				
 			</h:form>
 		</div>
